@@ -20,6 +20,23 @@ point_pairs = [
     (12, 14), (14, 16)  # Нога правая
 ]
 
+# Путь к файлу для сохранения тренировочных данных
+training_data_path = os.path.join(os.path.dirname(__file__), "training_data.json")
+
+# Функция для сохранения данных в файл JSON
+def save_training_data(data):
+    if os.path.exists(training_data_path):
+        with open(training_data_path, "r") as f:
+            existing_data = json.load(f)
+    else:
+        existing_data = []
+
+    existing_data.append(data)
+
+    with open(training_data_path, "w") as f:
+        json.dump(existing_data, f, indent=4)
+    logging.info(f"Данные сохранены в {training_data_path}")
+
 def process_video_with_tracking(model, input_video_path, output_dir="results", show_video=False, save_video=True):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -62,7 +79,6 @@ def process_video_with_tracking(model, input_video_path, output_dir="results", s
                 random.seed(person_id)
                 color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-
                 for j, point in enumerate(keypoints):
                     x, y = point
                     if x > 0 and y > 0:
@@ -75,6 +91,14 @@ def process_video_with_tracking(model, input_video_path, output_dir="results", s
                         x2, y2 = int(keypoints[end][0]), int(keypoints[end][1])
                         cv2.line(frame, (x1, y1), (x2, y2), color, 2)
 
+                # Сохранение данных поз при нажатии на клавишу "d"
+                if show_video and cv2.waitKey(10) & 0xFF == ord("d"):
+                    logging.info(f"Сохранение позы для кадра {frame_number}, ID: {person_id}")
+                    save_training_data({
+                        "frame": frame_number,
+                        "person_id": person_id,
+                        "keypoints": data[person_id][frame_number]
+                    })
 
         logging.info(f"Processing frame {frame_number}")
         if save_video:
@@ -99,5 +123,6 @@ model = YOLO('yolov8m-pose.pt')
 # Принудительное использование CPU
 model.to('cpu')
 
+process_video_with_tracking(model, "test_video.mp4", output_dir="results", show_video=True, save_video=True)
 
 print("Обработка завершена. Результаты сохранены в папке 'results'.")
